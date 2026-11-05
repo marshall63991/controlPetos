@@ -1,378 +1,362 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GMadrid Zerolo - Control de Petos</title>
-  <style>
-    :root {
-      --azul: #0d2b4e;
-      --verde: #2e7d4f;
-      --amarillo: #f5c518;
-      --gris: #f3f5f8;
-      --texto: #1c2430;
-      --borde: #dde3ea;
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GMadrid Zerolo - Control de Petos</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --surface: #ffffff; --fg: #1d1f1c; --muted: #6b6f68;
+    --line: #dcdcd4; --accent: #1f6f4a; --accent-fg: #ffffff; --bar: #9fc7b2;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161815; --surface: #1f221e; --fg: #ecefe9; --muted: #9aa096;
+      --line: #353a33; --accent: #6fbf93; --accent-fg: #0f1410; --bar: #2f5a44;
+      color-scheme: dark;
     }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      background: var(--gris);
-      color: var(--texto);
-    }
-    header { background: var(--azul); color: #fff; padding: 16px 20px; }
-    header h1 { margin: 0; font-size: 20px; }
-    header p { margin: 4px 0 0; font-size: 13px; opacity: .8; }
-    main { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; gap: 20px; }
-    section { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 16px; }
-    h2 { margin: 0 0 12px; font-size: 17px; color: var(--azul); }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161815; --surface: #1f221e; --fg: #ecefe9; --muted: #9aa096;
+    --line: #353a33; --accent: #6fbf93; --accent-fg: #0f1410; --bar: #2f5a44;
+    color-scheme: dark;
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px; line-height: 1.5;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 20px 32px;
+  }
+  main { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  h1 { font-size: 22px; margin: 0; text-wrap: balance; }
+  h2 { font-size: 16px; margin: 0 0 8px; }
+  p { margin: 0; color: var(--muted); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+  button {
+    font: inherit; color: var(--accent-fg); background: var(--accent);
+    border: none; border-radius: 8px; padding: 10px 12px; font-weight: 600; cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  select {
+    font: inherit; color: var(--fg); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%;
+  }
+  .msg { font-size: 13px; color: var(--muted); margin-top: 8px; min-height: 1em; }
+  .ok { color: var(--accent); }
+  .alerta { color: #8a6d00; }
+  .error { color: #b42318; }
+  .spinner {
+    display: inline-block; vertical-align: middle; margin-left: 8px;
+    width: 18px; height: 18px; box-sizing: border-box;
+    border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  .spinner[hidden] { display: none !important; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
 
-    .mes-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-    .mes-nav h2 { margin: 0; text-transform: capitalize; }
-    button { font: inherit; cursor: pointer; border: none; border-radius: 8px; padding: 8px 14px; }
-    button:disabled { opacity: .5; cursor: default; }
-    .btn-nav, .btn-secundario { background: var(--gris); color: var(--azul); }
-    .btn-primario { background: var(--verde); color: #fff; }
+  .mes-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .mes-nav h2 { margin: 0; text-transform: capitalize; }
+  .btn-nav { background: var(--bg); color: var(--fg); border: 1px solid var(--line); padding: 6px 12px; }
+  .cabecera-dias, .dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .cabecera-dias div { font-size: 12px; text-align: center; color: var(--muted); font-weight: 600; }
+  .dia {
+    min-height: 70px; border: 1px solid var(--line); border-radius: 8px; padding: 6px;
+    font-size: 12px; background: var(--bg); position: relative;
+  }
+  .dia.vacio { background: transparent; border-color: transparent; }
+  .dia.entreno { background: var(--surface); cursor: pointer; }
+  .dia.entreno:hover { box-shadow: 0 0 0 2px var(--accent) inset; }
+  .num { font-weight: 600; }
+  .chip {
+    display: block; margin-top: 6px; background: var(--accent); color: var(--accent-fg);
+    border-radius: 6px; padding: 3px 5px; font-size: 11px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .aviso {
+    position: absolute; top: 6px; right: 6px; width: 12px; height: 12px; border-radius: 50%;
+    background: #f5c518; box-shadow: 0 0 0 2px var(--surface);
+  }
+  .leyenda { font-size: 12px; color: var(--muted); margin-top: 12px; display: flex; gap: 14px; flex-wrap: wrap; }
+  .leyenda span::before {
+    content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px;
+    margin-right: 6px; vertical-align: middle;
+  }
+  .l-entreno::before { background: var(--surface); border: 1px solid var(--line); }
+  .l-verde::before { background: var(--accent); }
+  .l-amarillo::before { background: #f5c518; border-radius: 50%; }
 
-    .cabecera-dias, .dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-    .cabecera-dias div { font-size: 12px; text-align: center; color: #667; font-weight: 600; }
-    .dia {
-      min-height: 70px;
-      border: 1px solid var(--borde);
-      border-radius: 8px;
-      padding: 6px;
-      font-size: 12px;
-      background: #fafbfc;
-      position: relative;
-    }
-    .dia.vacio { background: transparent; border-color: transparent; }
-    .dia.entreno { background: #fff; cursor: pointer; border-color: #b8c7d9; }
-    .dia.entreno:hover { box-shadow: 0 0 0 2px var(--azul) inset; }
-    .num { font-weight: 600; }
-    .chip {
-      display: block;
-      margin-top: 6px;
-      background: var(--verde);
-      color: #fff;
-      border-radius: 6px;
-      padding: 3px 5px;
-      font-size: 11px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .aviso {
-      position: absolute;
-      top: 6px;
-      right: 6px;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: var(--amarillo);
-      box-shadow: 0 0 0 2px #fff;
-    }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 8px 4px; border-bottom: 1px solid var(--line); }
+  th.num-col, td.num-col { text-align: right; }
+  td.num-col { font-weight: 700; }
 
-    .leyenda { font-size: 12px; color: #556; margin-top: 12px; display: flex; gap: 14px; flex-wrap: wrap; }
-    .leyenda span::before {
-      content: "";
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      border-radius: 3px;
-      margin-right: 6px;
-      vertical-align: middle;
-    }
-    .l-entreno::before { background: #fff; border: 1px solid #b8c7d9; }
-    .l-verde::before { background: var(--verde); }
-    .l-amarillo::before { background: var(--amarillo); border-radius: 50%; }
+  .modal {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, .45);
+    display: none; align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal.abierto { display: flex; }
+  .caja { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; width: 100%; max-width: 360px; }
+  .caja h2 { text-transform: capitalize; }
+  .caja select { margin: 10px 0 14px; }
+  .acciones { display: flex; gap: 8px; justify-content: flex-end; }
+  .btn-secundario { background: var(--bg); color: var(--fg); border: 1px solid var(--line); }
 
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--borde); }
-    th.num-col, td.num-col { text-align: right; }
-    td.num-col { font-weight: 700; }
-
-    .modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, .45);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-    }
-    .modal.abierto { display: flex; }
-    .caja { background: #fff; border-radius: 12px; padding: 20px; width: 100%; max-width: 360px; }
-    .caja h2 { text-transform: capitalize; }
-    select {
-      width: 100%;
-      font: inherit;
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid var(--borde);
-      margin: 10px 0 14px;
-    }
-    .acciones { display: flex; gap: 8px; justify-content: flex-end; }
-    .msg { font-size: 14px; margin-top: 10px; min-height: 18px; }
-    .ok { color: var(--verde); }
-    .alerta { color: #8a6d00; }
-    .error { color: #b42318; }
-    .cargando { color: #667; font-size: 14px; }
-
-    @media (max-width: 600px) {
-      .dia { min-height: 56px; padding: 4px; }
-      .chip { font-size: 9px; padding: 2px 3px; }
-    }
-  </style>
+  @media (max-width: 600px) {
+    .dia { min-height: 56px; padding: 4px; }
+    .chip { font-size: 9px; padding: 2px 3px; }
+  }
+</style>
 </head>
 <body>
+<main>
   <header>
     <h1>GMadrid Zerolo - Control de Petos</h1>
-    <p>Entrenamientos de martes y jueves · temporada 2026/27</p>
+    <p id="round">Entrenamientos de martes y jueves · temporada 2026/27</p>
+    <span class="spinner" id="spinner" role="status" aria-label="Cargando" hidden></span>
   </header>
 
-  <main>
-    <section>
-      <div class="mes-nav">
-        <button class="btn-nav" id="prev">‹</button>
-        <h2 id="titulo-mes"></h2>
-        <button class="btn-nav" id="next">›</button>
-      </div>
-      <div class="cabecera-dias">
-        <div>L</div><div>M</div><div>X</div><div>J</div><div>V</div><div>S</div><div>D</div>
-      </div>
-      <div class="dias" id="dias"></div>
-      <div class="leyenda">
-        <span class="l-entreno">Entrenamiento</span>
-        <span class="l-verde">Petos llevados a casa</span>
-        <span class="l-amarillo">Intento duplicado rechazado</span>
-      </div>
-      <p class="cargando" id="cargando"></p>
-    </section>
-
-    <section>
-      <h2>Veces que se han llevado los petos</h2>
-      <table>
-        <thead><tr><th>Jugador</th><th class="num-col">Veces</th></tr></thead>
-        <tbody id="ranking"></tbody>
-      </table>
-    </section>
-  </main>
-
-  <div class="modal" id="modal">
-    <div class="caja">
-      <h2 id="modal-fecha"></h2>
-      <p style="font-size:14px; margin:0;">¿Quién se ha llevado los petos a casa?</p>
-      <select id="select-jugador"></select>
-      <div class="acciones">
-        <button class="btn-secundario" id="cancelar">Cerrar</button>
-        <button class="btn-primario" id="confirmar">Registrar</button>
-      </div>
-      <div class="msg" id="msg-modal"></div>
+  <section class="card">
+    <div class="mes-nav">
+      <button class="btn-nav" id="prev" type="button">‹</button>
+      <h2 id="titulo-mes"></h2>
+      <button class="btn-nav" id="next" type="button">›</button>
     </div>
+    <div class="cabecera-dias">
+      <div>L</div><div>M</div><div>X</div><div>J</div><div>V</div><div>S</div><div>D</div>
+    </div>
+    <div class="dias" id="dias"></div>
+    <div class="leyenda">
+      <span class="l-entreno">Entrenamiento</span>
+      <span class="l-verde">Petos llevados a casa</span>
+      <span class="l-amarillo">Intento duplicado rechazado</span>
+    </div>
+    <p class="msg" id="estado"></p>
+  </section>
+
+  <section class="card">
+    <h2>Veces que se han llevado los petos</h2>
+    <table>
+      <thead><tr><th>Jugador</th><th class="num-col">Veces</th></tr></thead>
+      <tbody id="ranking"></tbody>
+    </table>
+  </section>
+</main>
+
+<div class="modal" id="modal">
+  <div class="caja">
+    <h2 id="modal-fecha"></h2>
+    <p>¿Quién se ha llevado los petos a casa?</p>
+    <select id="select-jugador"></select>
+    <div class="acciones">
+      <button class="btn-secundario" id="cancelar" type="button">Cerrar</button>
+      <button id="confirmar" type="button">Registrar</button>
+    </div>
+    <div class="msg" id="msg-modal"></div>
   </div>
+</div>
 
-  <script>
-    // URL de la implementación de la aplicación web (termina en /exec).
-    // Sustituye el valor de abajo por la tuya antes de publicar.
-    const URL_API = 'https://script.google.com/macros/s/AKfycby5PX0ZSWq6Ibr-JeyW9iO0UFfGWyXOdbeGZtehu0t3n7UZLIq4taFsKDJfn1AS2ewe2Q/exec';
+<script>
+(function () {
+  // Pega aquí la URL de la aplicación web de Google Apps Script (termina en /exec)
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby0mdb7GV-LQu1CVlVrc54iPhQ2eaNozUH__HhBM2fGVmNjfl97PordUEnLHkp8mjCjZg/exec";
 
-    const INICIO = new Date(2026, 8, 1);   // 1 sep 2026
-    const FIN = new Date(2027, 5, 30);     // 30 jun 2027
-    const MES_MIN = new Date(2026, 8, 1);
-    const MES_MAX = new Date(2027, 5, 1);
+  const INICIO = new Date(2026, 8, 1);   // 1 sep 2026
+  const FIN = new Date(2027, 5, 30);     // 30 jun 2027
+  const MES_MIN = new Date(2026, 8, 1);
+  const MES_MAX = new Date(2027, 5, 1);
 
-    let datos = { jugadores: [], registros: [], rechazos: [], ranking: [] };
-    let mapaRegistros = {};
-    let setRechazos = new Set();
-    let mesActual = new Date(2026, 8, 1);
-    let fechaSeleccionada = null;
+  const $ = (id) => document.getElementById(id);
 
-    /* ---------- Conexión con la API ---------- */
+  let datos = { jugadores: [], registros: [], rechazos: [], ranking: [] };
+  let mapaRegistros = {};
+  let setRechazos = new Set();
+  let mesActual = new Date(2026, 8, 1);
+  let fechaSeleccionada = null;
 
-    async function llamarApi(accion, params) {
-      const url = new URL(URL_API);
-      url.searchParams.set('accion', accion);
-      Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
+  // GET para leer datos
+  async function get() {
+    const r = await fetch(SCRIPT_URL);
+    return r.json();
+  }
 
-      const res = await fetch(url.toString());
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const json = await res.json();
-      if (!json.ok) throw new Error(json.error || 'Error desconocido');
-      return json.data;
+  // POST para escribir. Sin cabeceras personalizadas: text/plain evita el preflight CORS de Apps Script.
+  async function post(data) {
+    const r = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(data) });
+    return r.json();
+  }
+
+  function clave(d) {
+    return d.getFullYear() + "-" +
+      String(d.getMonth() + 1).padStart(2, "0") + "-" +
+      String(d.getDate()).padStart(2, "0");
+  }
+
+  function esEntreno(d) {
+    const w = d.getDay();
+    return d >= INICIO && d <= FIN && (w === 2 || w === 4);
+  }
+
+  function renderMes() {
+    const cont = $("dias");
+    cont.textContent = "";
+    const y = mesActual.getFullYear();
+    const m = mesActual.getMonth();
+
+    $("titulo-mes").textContent = mesActual.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+    $("prev").disabled = mesActual <= MES_MIN;
+    $("next").disabled = mesActual >= MES_MAX;
+
+    const offset = (new Date(y, m, 1).getDay() + 6) % 7;
+    const diasMes = new Date(y, m + 1, 0).getDate();
+    for (let i = 0; i < offset; i++) {
+      const v = document.createElement("div");
+      v.className = "dia vacio";
+      cont.appendChild(v);
     }
 
-    /* ---------- Calendario ---------- */
+    for (let dia = 1; dia <= diasMes; dia++) {
+      const d = new Date(y, m, dia);
+      const k = clave(d);
+      const entreno = esEntreno(d);
 
-    function clave(d) {
-      return d.getFullYear() + '-' +
-        String(d.getMonth() + 1).padStart(2, '0') + '-' +
-        String(d.getDate()).padStart(2, '0');
-    }
+      const el = document.createElement("div");
+      el.className = "dia" + (entreno ? " entreno" : "");
 
-    function esEntreno(d) {
-      const w = d.getDay();
-      return d >= INICIO && d <= FIN && (w === 2 || w === 4);
-    }
+      const num = document.createElement("div");
+      num.className = "num";
+      num.textContent = dia;
+      el.appendChild(num);
 
-    function celdaVacia() {
-      const el = document.createElement('div');
-      el.className = 'dia vacio';
-      return el;
-    }
-
-    function renderMes() {
-      const cont = document.getElementById('dias');
-      cont.innerHTML = '';
-      const y = mesActual.getFullYear();
-      const m = mesActual.getMonth();
-
-      document.getElementById('titulo-mes').textContent =
-        mesActual.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-      document.getElementById('prev').disabled = mesActual <= MES_MIN;
-      document.getElementById('next').disabled = mesActual >= MES_MAX;
-
-      const offset = (new Date(y, m, 1).getDay() + 6) % 7;
-      const diasMes = new Date(y, m + 1, 0).getDate();
-      for (let i = 0; i < offset; i++) cont.appendChild(celdaVacia());
-
-      for (let dia = 1; dia <= diasMes; dia++) {
-        const d = new Date(y, m, dia);
-        const k = clave(d);
-        const entreno = esEntreno(d);
-
-        const el = document.createElement('div');
-        el.className = 'dia' + (entreno ? ' entreno' : '');
-
-        const num = document.createElement('div');
-        num.className = 'num';
-        num.textContent = dia;
-        el.appendChild(num);
-
-        if (entreno) {
-          if (mapaRegistros[k]) {
-            const chip = document.createElement('span');
-            chip.className = 'chip';
-            chip.textContent = mapaRegistros[k];
-            el.appendChild(chip);
-          }
-          if (setRechazos.has(k)) {
-            const aviso = document.createElement('span');
-            aviso.className = 'aviso';
-            aviso.title = 'Se intentó registrar más de una vez';
-            el.appendChild(aviso);
-          }
-          el.onclick = () => abrirModal(k);
+      if (entreno) {
+        if (mapaRegistros[k]) {
+          const chip = document.createElement("span");
+          chip.className = "chip";
+          chip.textContent = mapaRegistros[k];
+          el.appendChild(chip);
         }
-        cont.appendChild(el);
+        if (setRechazos.has(k)) {
+          const aviso = document.createElement("span");
+          aviso.className = "aviso";
+          aviso.title = "Se intentó registrar más de una vez";
+          el.appendChild(aviso);
+        }
+        el.onclick = () => abrirModal(k);
       }
+      cont.appendChild(el);
     }
+  }
 
-    function cambiarMes(delta) {
-      mesActual = new Date(mesActual.getFullYear(), mesActual.getMonth() + delta, 1);
-      renderMes();
+  function abrirModal(k) {
+    fechaSeleccionada = k;
+    const [y, m, d] = k.split("-").map(Number);
+    $("modal-fecha").textContent =
+      new Date(y, m - 1, d).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
+
+    const sel = $("select-jugador");
+    sel.textContent = "";
+    datos.jugadores.forEach((j) => {
+      const o = document.createElement("option");
+      o.value = j;
+      o.textContent = j;
+      sel.appendChild(o);
+    });
+
+    const msg = $("msg-modal");
+    msg.className = "msg";
+    msg.textContent = "";
+    if (mapaRegistros[k]) {
+      msg.textContent = "Ya consta que se llevó los petos: " + mapaRegistros[k] + ".";
+      msg.className = "msg alerta";
     }
+    $("modal").classList.add("abierto");
+  }
 
-    /* ---------- Modal de registro ---------- */
+  function cerrarModal() {
+    $("modal").classList.remove("abierto");
+  }
 
-    function abrirModal(k) {
-      fechaSeleccionada = k;
-      const [y, m, d] = k.split('-').map(Number);
-      document.getElementById('modal-fecha').textContent =
-        new Date(y, m - 1, d).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  async function registrar() {
+    const btn = $("confirmar");
+    const msg = $("msg-modal");
+    const jugador = $("select-jugador").value;
+    btn.disabled = true;
+    msg.className = "msg";
+    msg.textContent = "Guardando…";
 
-      const sel = document.getElementById('select-jugador');
-      sel.innerHTML = '';
-      datos.jugadores.forEach(j => {
-        const o = document.createElement('option');
-        o.value = j;
-        o.textContent = j;
-        sel.appendChild(o);
-      });
-
-      const msg = document.getElementById('msg-modal');
-      msg.className = 'msg';
-      msg.textContent = '';
-      if (mapaRegistros[k]) {
-        msg.textContent = 'Ya consta que se llevó los petos: ' + mapaRegistros[k] + '.';
-        msg.className = 'msg alerta';
-      }
-
-      document.getElementById('modal').classList.add('abierto');
+    try {
+      const data = await post({ action: "registrar", fecha: fechaSeleccionada, jugador: jugador });
+      if (data.error) throw new Error(data.error);
+      msg.textContent = data.mensaje;
+      msg.className = "msg " + (data.ok ? "ok" : "alerta");
+      if (data.ok) setTimeout(cerrarModal, 700);
+      await refresh();
+    } catch (e) {
+      msg.textContent = "No se pudo guardar. Inténtalo de nuevo.";
+      msg.className = "msg error";
+    } finally {
+      btn.disabled = false;
     }
+  }
 
-    function cerrarModal() {
-      document.getElementById('modal').classList.remove('abierto');
-    }
+  function renderRanking() {
+    const tb = $("ranking");
+    tb.textContent = "";
+    datos.ranking.forEach((r) => {
+      const tr = document.createElement("tr");
+      const tdNombre = document.createElement("td");
+      tdNombre.textContent = r.jugador;
+      const tdVeces = document.createElement("td");
+      tdVeces.className = "num-col";
+      tdVeces.textContent = r.veces;
+      tr.append(tdNombre, tdVeces);
+      tb.appendChild(tr);
+    });
+  }
 
-    async function registrar() {
-      const btn = document.getElementById('confirmar');
-      const msg = document.getElementById('msg-modal');
-      const jugador = document.getElementById('select-jugador').value;
-      btn.disabled = true;
-      msg.className = 'msg';
-      msg.textContent = 'Guardando…';
-
-      try {
-        const res = await llamarApi('registrar', { fecha: fechaSeleccionada, jugador: jugador });
-        msg.textContent = res.mensaje;
-        msg.className = 'msg ' + (res.ok ? 'ok' : 'alerta');
-        if (res.ok) setTimeout(cerrarModal, 700);
-        await cargarDatos();
-      } catch (err) {
-        msg.textContent = 'Error: ' + err.message;
-        msg.className = 'msg error';
-      } finally {
-        btn.disabled = false;
-      }
-    }
-
-    /* ---------- Datos ---------- */
-
-    async function cargarDatos() {
-      const cargando = document.getElementById('cargando');
-      cargando.textContent = 'Cargando datos…';
-      try {
-        const d = await llamarApi('datos');
-        renderizarDatos(d);
-        cargando.textContent = '';
-      } catch (err) {
-        cargando.textContent = 'Error al cargar datos: ' + err.message;
-      }
-    }
-
-    function renderizarDatos(d) {
-      datos = d;
+  async function refresh() {
+    $("spinner").hidden = false;
+    try {
+      const data = await get();
+      if (!data.ok) throw new Error(data.error);
+      datos = data;
       mapaRegistros = {};
-      d.registros.forEach(r => (mapaRegistros[r.fecha] = r.jugador));
-      setRechazos = new Set(d.rechazos);
+      data.registros.forEach((r) => (mapaRegistros[r.fecha] = r.jugador));
+      setRechazos = new Set(data.rechazos);
+      $("estado").textContent = "";
       renderMes();
-
-      const tb = document.getElementById('ranking');
-      tb.innerHTML = '';
-      d.ranking.forEach(r => {
-        const tr = document.createElement('tr');
-        const tdNombre = document.createElement('td');
-        tdNombre.textContent = r.jugador;
-        const tdVeces = document.createElement('td');
-        tdVeces.className = 'num-col';
-        tdVeces.textContent = r.veces;
-        tr.append(tdNombre, tdVeces);
-        tb.appendChild(tr);
-      });
+      renderRanking();
+    } catch (e) {
+      $("estado").textContent = "No se pueden cargar los datos ahora. Revisa la URL del script.";
+      $("estado").className = "msg error";
+    } finally {
+      $("spinner").hidden = true;
     }
+  }
 
-    /* ---------- Eventos ---------- */
-
-    document.getElementById('prev').onclick = () => cambiarMes(-1);
-    document.getElementById('next').onclick = () => cambiarMes(1);
-    document.getElementById('cancelar').onclick = cerrarModal;
-    document.getElementById('confirmar').onclick = registrar;
-    document.getElementById('modal').onclick = e => {
-      if (e.target.id === 'modal') cerrarModal();
-    };
-
+  function cambiarMes(delta) {
+    mesActual = new Date(mesActual.getFullYear(), mesActual.getMonth() + delta, 1);
     renderMes();
-    cargarDatos();
-  </script>
+  }
+
+  $("prev").addEventListener("click", () => cambiarMes(-1));
+  $("next").addEventListener("click", () => cambiarMes(1));
+  $("cancelar").addEventListener("click", cerrarModal);
+  $("confirmar").addEventListener("click", registrar);
+  $("modal").addEventListener("click", (e) => {
+    if (e.target.id === "modal") cerrarModal();
+  });
+
+  renderMes();
+  refresh();
+  setInterval(refresh, 30000);
+})();
+</script>
 </body>
 </html>
