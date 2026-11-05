@@ -73,6 +73,8 @@
   .dia.vacio { background: transparent; border-color: transparent; }
   .dia.entreno { background: var(--surface); cursor: pointer; }
   .dia.entreno:hover { box-shadow: 0 0 0 2px var(--accent) inset; }
+  .dia.proximo { box-shadow: 0 0 0 2px var(--accent); }
+  .dia.proximo .num::after { content: " · próximo"; font-weight: 400; color: var(--accent); font-size: 11px; }
   .num { font-weight: 600; }
   .chip {
     display: block; margin-top: 6px; background: var(--accent); color: var(--accent-fg);
@@ -105,6 +107,8 @@
   .caja { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; width: 100%; max-width: 360px; }
   .caja h2 { text-transform: capitalize; }
   .caja select { margin: 10px 0 14px; }
+  .caja input { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; box-sizing: border-box; margin-top: 4px; }
+  .caja label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 12px; }
   .acciones { display: flex; gap: 8px; justify-content: flex-end; }
   .btn-secundario { background: var(--bg); color: var(--fg); border: 1px solid var(--line); }
 
@@ -143,7 +147,7 @@
   <section class="card">
     <h2>Veces que se han llevado los petos</h2>
     <table>
-      <thead><tr><th>Jugador</th><th class="num-col">Veces</th></tr></thead>
+      <thead><tr><th>Jugador</th><th class="num-col">Veces</th><th>Última vez</th></tr></thead>
       <tbody id="ranking"></tbody>
     </table>
   </section>
@@ -154,6 +158,9 @@
     <h2 id="modal-fecha"></h2>
     <p>¿Quién se ha llevado los petos a casa?</p>
     <select id="select-jugador"></select>
+    <label>Clave (solo administración)
+      <input id="clave" type="password" autocomplete="off" placeholder="Opcional">
+    </label>
     <div class="acciones">
       <button class="btn-secundario" id="cancelar" type="button">Cerrar</button>
       <button id="confirmar" type="button">Registrar</button>
@@ -165,7 +172,7 @@
 <script>
 (function () {
   // Pega aquí la URL de la aplicación web de Google Apps Script (termina en /exec)
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwyRV0DBn0DLbJwtZXNp969XpnBs5hqGTrUI17O7b9co1BCr853-nrQ55mqqwIJTMA8NQ/exec";
+  const SCRIPT_URL = "PEGA_AQUI_LA_URL_DEL_SCRIPT";
 
   const INICIO = new Date(2026, 8, 1);   // 1 sep 2026
   const FIN = new Date(2027, 5, 30);     // 30 jun 2027
@@ -177,7 +184,15 @@
   let datos = { jugadores: [], registros: [], rechazos: [], ranking: [] };
   let mapaRegistros = {};
   let setRechazos = new Set();
-  let mesActual = new Date(2026, 8, 1);
+  // Mes en curso, acotado a la temporada (sep 2026 - jun 2027)
+  function mesInicial() {
+    const hoy = new Date();
+    const actual = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    if (actual < MES_MIN) return new Date(MES_MIN);
+    if (actual > MES_MAX) return new Date(MES_MAX);
+    return actual;
+  }
+  let mesActual = mesInicial();
   let fechaSeleccionada = null;
 
   // GET para leer datos
@@ -196,6 +211,20 @@
     return d.getFullYear() + "-" +
       String(d.getMonth() + 1).padStart(2, "0") + "-" +
       String(d.getDate()).padStart(2, "0");
+  }
+
+  // Primer entrenamiento de hoy en adelante (dentro de la temporada).
+  // Los entrenamientos son de 20:00 a 22:00: uno de hoy deja de contar a partir de las 22:00.
+  function proximoEntreno() {
+    const ahora = new Date();
+    const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    for (let d = new Date(Math.max(hoy, INICIO)); d <= FIN; d.setDate(d.getDate() + 1)) {
+      if (!esEntreno(d)) continue;
+      const fin = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 22, 0);
+      if (ahora >= fin) continue;
+      return clave(d);
+    }
+    return null;
   }
 
   function esEntreno(d) {
@@ -227,7 +256,7 @@
       const entreno = esEntreno(d);
 
       const el = document.createElement("div");
-      el.className = "dia" + (entreno ? " entreno" : "");
+      el.className = "dia" + (entreno ? " entreno" : "") + (k === proximoEntreno() ? " proximo" : "");
 
       const num = document.createElement("div");
       num.className = "num";
@@ -254,8 +283,9 @@
   }
 
   function abrirModal(k) {
-    fechaSeleccionada = k;
     const [y, m, d] = k.split("-").map(Number);
+    if (!esEntreno(new Date(y, m - 1, d))) return; // solo se registra en días de entrenamiento
+    fechaSeleccionada = k;
     $("modal-fecha").textContent =
       new Date(y, m - 1, d).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
 
@@ -291,8 +321,17 @@
     msg.textContent = "Guardando…";
 
     try {
-      const data = await post({ action: "registrar", fecha: fechaSeleccionada, jugador: jugador });
-      if (data.error) throw new Error(data.error);
+      const data = await post({
+        action: "registrar",
+        fecha: fechaSeleccionada,
+        jugador: jugador,
+        clave: $("clave").value
+      });
+      if (data.error) {
+        msg.textContent = data.error;
+        msg.className = "msg error";
+        return;
+      }
       msg.textContent = data.mensaje;
       msg.className = "msg " + (data.ok ? "ok" : "alerta");
       if (data.ok) setTimeout(cerrarModal, 700);
@@ -305,6 +344,12 @@
     }
   }
 
+  // "2026-11-03" -> "3/11/2026"
+  function formatearFecha(k) {
+    const [y, m, d] = k.split("-").map(Number);
+    return d + "/" + m + "/" + y;
+  }
+
   function renderRanking() {
     const tb = $("ranking");
     tb.textContent = "";
@@ -315,7 +360,9 @@
       const tdVeces = document.createElement("td");
       tdVeces.className = "num-col";
       tdVeces.textContent = r.veces;
-      tr.append(tdNombre, tdVeces);
+      const tdUltima = document.createElement("td");
+      tdUltima.textContent = r.ultima ? formatearFecha(r.ultima) : "—";
+      tr.append(tdNombre, tdVeces, tdUltima);
       tb.appendChild(tr);
     });
   }
