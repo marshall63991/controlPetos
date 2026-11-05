@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GMadrid Zerolo - Control de Petos</title>
+  <style>
+    :root {
+      --azul: #0d2b4e;
+      --verde: #2e7d4f;
+      --amarillo: #f5c518;
+      --gris: #f3f5f8;
+      --texto: #1c2430;
+      --borde: #dde3ea;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--gris);
+      color: var(--texto);
+    }
+    header { background: var(--azul); color: #fff; padding: 16px 20px; }
+    header h1 { margin: 0; font-size: 20px; }
+    header p { margin: 4px 0 0; font-size: 13px; opacity: .8; }
+    main { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; gap: 20px; }
+    section { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 16px; }
+    h2 { margin: 0 0 12px; font-size: 17px; color: var(--azul); }
+
+    .mes-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .mes-nav h2 { margin: 0; text-transform: capitalize; }
+    button { font: inherit; cursor: pointer; border: none; border-radius: 8px; padding: 8px 14px; }
+    button:disabled { opacity: .5; cursor: default; }
+    .btn-nav, .btn-secundario { background: var(--gris); color: var(--azul); }
+    .btn-primario { background: var(--verde); color: #fff; }
+
+    .cabecera-dias, .dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .cabecera-dias div { font-size: 12px; text-align: center; color: #667; font-weight: 600; }
+    .dia {
+      min-height: 70px;
+      border: 1px solid var(--borde);
+      border-radius: 8px;
+      padding: 6px;
+      font-size: 12px;
+      background: #fafbfc;
+      position: relative;
+    }
+    .dia.vacio { background: transparent; border-color: transparent; }
+    .dia.entreno { background: #fff; cursor: pointer; border-color: #b8c7d9; }
+    .dia.entreno:hover { box-shadow: 0 0 0 2px var(--azul) inset; }
+    .num { font-weight: 600; }
+    .chip {
+      display: block;
+      margin-top: 6px;
+      background: var(--verde);
+      color: #fff;
+      border-radius: 6px;
+      padding: 3px 5px;
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .aviso {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--amarillo);
+      box-shadow: 0 0 0 2px #fff;
+    }
+
+    .leyenda { font-size: 12px; color: #556; margin-top: 12px; display: flex; gap: 14px; flex-wrap: wrap; }
+    .leyenda span::before {
+      content: "";
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .l-entreno::before { background: #fff; border: 1px solid #b8c7d9; }
+    .l-verde::before { background: var(--verde); }
+    .l-amarillo::before { background: var(--amarillo); border-radius: 50%; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--borde); }
+    th.num-col, td.num-col { text-align: right; }
+    td.num-col { font-weight: 700; }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal.abierto { display: flex; }
+    .caja { background: #fff; border-radius: 12px; padding: 20px; width: 100%; max-width: 360px; }
+    .caja h2 { text-transform: capitalize; }
+    select {
+      width: 100%;
+      font: inherit;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--borde);
+      margin: 10px 0 14px;
+    }
+    .acciones { display: flex; gap: 8px; justify-content: flex-end; }
+    .msg { font-size: 14px; margin-top: 10px; min-height: 18px; }
+    .ok { color: var(--verde); }
+    .alerta { color: #8a6d00; }
+    .error { color: #b42318; }
+    .cargando { color: #667; font-size: 14px; }
+
+    @media (max-width: 600px) {
+      .dia { min-height: 56px; padding: 4px; }
+      .chip { font-size: 9px; padding: 2px 3px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>GMadrid Zerolo - Control de Petos</h1>
+    <p>Entrenamientos de martes y jueves · temporada 2026/27</p>
+  </header>
+
+  <main>
+    <section>
+      <div class="mes-nav">
+        <button class="btn-nav" id="prev">‹</button>
+        <h2 id="titulo-mes"></h2>
+        <button class="btn-nav" id="next">›</button>
+      </div>
+      <div class="cabecera-dias">
+        <div>L</div><div>M</div><div>X</div><div>J</div><div>V</div><div>S</div><div>D</div>
+      </div>
+      <div class="dias" id="dias"></div>
+      <div class="leyenda">
+        <span class="l-entreno">Entrenamiento</span>
+        <span class="l-verde">Petos llevados a casa</span>
+        <span class="l-amarillo">Intento duplicado rechazado</span>
+      </div>
+      <p class="cargando" id="cargando"></p>
+    </section>
+
+    <section>
+      <h2>Veces que se han llevado los petos</h2>
+      <table>
+        <thead><tr><th>Jugador</th><th class="num-col">Veces</th></tr></thead>
+        <tbody id="ranking"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <div class="modal" id="modal">
+    <div class="caja">
+      <h2 id="modal-fecha"></h2>
+      <p style="font-size:14px; margin:0;">¿Quién se ha llevado los petos a casa?</p>
+      <select id="select-jugador"></select>
+      <div class="acciones">
+        <button class="btn-secundario" id="cancelar">Cerrar</button>
+        <button class="btn-primario" id="confirmar">Registrar</button>
+      </div>
+      <div class="msg" id="msg-modal"></div>
+    </div>
+  </div>
+
+  <script>
+    // URL de la implementación de la aplicación web (termina en /exec).
+    // Sustituye el valor de abajo por la tuya antes de publicar.
+    const URL_API = 'https://script.google.com/macros/s/AKfycby5PX0ZSWq6Ibr-JeyW9iO0UFfGWyXOdbeGZtehu0t3n7UZLIq4taFsKDJfn1AS2ewe2Q/exec';
+
+    const INICIO = new Date(2026, 8, 1);   // 1 sep 2026
+    const FIN = new Date(2027, 5, 30);     // 30 jun 2027
+    const MES_MIN = new Date(2026, 8, 1);
+    const MES_MAX = new Date(2027, 5, 1);
+
+    let datos = { jugadores: [], registros: [], rechazos: [], ranking: [] };
+    let mapaRegistros = {};
+    let setRechazos = new Set();
+    let mesActual = new Date(2026, 8, 1);
+    let fechaSeleccionada = null;
+
+    /* ---------- Conexión con la API ---------- */
+
+    async function llamarApi(accion, params) {
+      const url = new URL(URL_API);
+      url.searchParams.set('accion', accion);
+      Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
+
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'Error desconocido');
+      return json.data;
+    }
+
+    /* ---------- Calendario ---------- */
+
+    function clave(d) {
+      return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+    }
+
+    function esEntreno(d) {
+      const w = d.getDay();
+      return d >= INICIO && d <= FIN && (w === 2 || w === 4);
+    }
+
+    function celdaVacia() {
+      const el = document.createElement('div');
+      el.className = 'dia vacio';
+      return el;
+    }
+
+    function renderMes() {
+      const cont = document.getElementById('dias');
+      cont.innerHTML = '';
+      const y = mesActual.getFullYear();
+      const m = mesActual.getMonth();
+
+      document.getElementById('titulo-mes').textContent =
+        mesActual.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      document.getElementById('prev').disabled = mesActual <= MES_MIN;
+      document.getElementById('next').disabled = mesActual >= MES_MAX;
+
+      const offset = (new Date(y, m, 1).getDay() + 6) % 7;
+      const diasMes = new Date(y, m + 1, 0).getDate();
+      for (let i = 0; i < offset; i++) cont.appendChild(celdaVacia());
+
+      for (let dia = 1; dia <= diasMes; dia++) {
+        const d = new Date(y, m, dia);
+        const k = clave(d);
+        const entreno = esEntreno(d);
+
+        const el = document.createElement('div');
+        el.className = 'dia' + (entreno ? ' entreno' : '');
+
+        const num = document.createElement('div');
+        num.className = 'num';
+        num.textContent = dia;
+        el.appendChild(num);
+
+        if (entreno) {
+          if (mapaRegistros[k]) {
+            const chip = document.createElement('span');
+            chip.className = 'chip';
+            chip.textContent = mapaRegistros[k];
+            el.appendChild(chip);
+          }
+          if (setRechazos.has(k)) {
+            const aviso = document.createElement('span');
+            aviso.className = 'aviso';
+            aviso.title = 'Se intentó registrar más de una vez';
+            el.appendChild(aviso);
+          }
+          el.onclick = () => abrirModal(k);
+        }
+        cont.appendChild(el);
+      }
+    }
+
+    function cambiarMes(delta) {
+      mesActual = new Date(mesActual.getFullYear(), mesActual.getMonth() + delta, 1);
+      renderMes();
+    }
+
+    /* ---------- Modal de registro ---------- */
+
+    function abrirModal(k) {
+      fechaSeleccionada = k;
+      const [y, m, d] = k.split('-').map(Number);
+      document.getElementById('modal-fecha').textContent =
+        new Date(y, m - 1, d).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+
+      const sel = document.getElementById('select-jugador');
+      sel.innerHTML = '';
+      datos.jugadores.forEach(j => {
+        const o = document.createElement('option');
+        o.value = j;
+        o.textContent = j;
+        sel.appendChild(o);
+      });
+
+      const msg = document.getElementById('msg-modal');
+      msg.className = 'msg';
+      msg.textContent = '';
+      if (mapaRegistros[k]) {
+        msg.textContent = 'Ya consta que se llevó los petos: ' + mapaRegistros[k] + '.';
+        msg.className = 'msg alerta';
+      }
+
+      document.getElementById('modal').classList.add('abierto');
+    }
+
+    function cerrarModal() {
+      document.getElementById('modal').classList.remove('abierto');
+    }
+
+    async function registrar() {
+      const btn = document.getElementById('confirmar');
+      const msg = document.getElementById('msg-modal');
+      const jugador = document.getElementById('select-jugador').value;
+      btn.disabled = true;
+      msg.className = 'msg';
+      msg.textContent = 'Guardando…';
+
+      try {
+        const res = await llamarApi('registrar', { fecha: fechaSeleccionada, jugador: jugador });
+        msg.textContent = res.mensaje;
+        msg.className = 'msg ' + (res.ok ? 'ok' : 'alerta');
+        if (res.ok) setTimeout(cerrarModal, 700);
+        await cargarDatos();
+      } catch (err) {
+        msg.textContent = 'Error: ' + err.message;
+        msg.className = 'msg error';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    /* ---------- Datos ---------- */
+
+    async function cargarDatos() {
+      const cargando = document.getElementById('cargando');
+      cargando.textContent = 'Cargando datos…';
+      try {
+        const d = await llamarApi('datos');
+        renderizarDatos(d);
+        cargando.textContent = '';
+      } catch (err) {
+        cargando.textContent = 'Error al cargar datos: ' + err.message;
+      }
+    }
+
+    function renderizarDatos(d) {
+      datos = d;
+      mapaRegistros = {};
+      d.registros.forEach(r => (mapaRegistros[r.fecha] = r.jugador));
+      setRechazos = new Set(d.rechazos);
+      renderMes();
+
+      const tb = document.getElementById('ranking');
+      tb.innerHTML = '';
+      d.ranking.forEach(r => {
+        const tr = document.createElement('tr');
+        const tdNombre = document.createElement('td');
+        tdNombre.textContent = r.jugador;
+        const tdVeces = document.createElement('td');
+        tdVeces.className = 'num-col';
+        tdVeces.textContent = r.veces;
+        tr.append(tdNombre, tdVeces);
+        tb.appendChild(tr);
+      });
+    }
+
+    /* ---------- Eventos ---------- */
+
+    document.getElementById('prev').onclick = () => cambiarMes(-1);
+    document.getElementById('next').onclick = () => cambiarMes(1);
+    document.getElementById('cancelar').onclick = cerrarModal;
+    document.getElementById('confirmar').onclick = registrar;
+    document.getElementById('modal').onclick = e => {
+      if (e.target.id === 'modal') cerrarModal();
+    };
+
+    renderMes();
+    cargarDatos();
+  </script>
+</body>
+</html>
